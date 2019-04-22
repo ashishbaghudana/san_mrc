@@ -1,13 +1,8 @@
 import torch
-import random
 import torch.nn as nn
 from torch.nn.utils import weight_norm
-from torch.autograd import Variable
-from torch.nn.parameter import Parameter
-import torch.nn.functional as F
-import numpy as np
+
 from .dropout_wrapper import DropoutWrapper
-from .similarity import FlatSimilarityWrapper
 
 
 class Classifier(nn.Module):

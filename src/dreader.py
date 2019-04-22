@@ -5,20 +5,21 @@ Author: xiaodl@microsoft.com
 '''
 
 import torch
-import math
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-from .recurrent import OneLayerBRNN, ContextualEmbed
+
+from .classifier import Classifier
 from .dropout_wrapper import DropoutWrapper
 from .encoder import LexiconEncoder
-from .similarity import DeepAttentionWrapper, FlatSimilarityWrapper, SelfAttnWrapper
-from .similarity import AttentionWrapper
+from .recurrent import OneLayerBRNN
 from .san import SAN
-from .classifier import Classifier
+from .similarity import AttentionWrapper
+from .similarity import DeepAttentionWrapper, SelfAttnWrapper
+
 
 class DNetwork(nn.Module):
     """Network for SAN doc reader."""
+
     def __init__(self, opt, embedding=None, padding_idx=0):
         super(DNetwork, self).__init__()
         my_dropout = DropoutWrapper(opt['dropout_p'], opt['vb_dropout'])
@@ -34,19 +35,26 @@ class DNetwork(nn.Module):
         contextual_share = opt.get('contextual_encoder_share', False)
         prefix = 'contextual'
         # doc_hidden_size
-        self.doc_encoder_low = OneLayerBRNN(doc_input_size + covec_size + elmo_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
-        self.doc_encoder_high = OneLayerBRNN(self.doc_encoder_low.output_size + covec_size + elmo_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
+        self.doc_encoder_low = OneLayerBRNN(doc_input_size + covec_size + elmo_size, opt['contextual_hidden_size'],
+                                            prefix=prefix, opt=opt, dropout=my_dropout)
+        self.doc_encoder_high = OneLayerBRNN(self.doc_encoder_low.output_size + covec_size + elmo_size,
+                                             opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
         if contextual_share:
             self.query_encoder_low = self.doc_encoder_low
             self.query_encoder_high = self.doc_encoder_high
         else:
-            self.query_encoder_low = OneLayerBRNN(query_input_size + covec_size + elmo_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
-            self.query_encoder_high = OneLayerBRNN(self.query_encoder_low.output_size + covec_size + elmo_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
+            self.query_encoder_low = OneLayerBRNN(query_input_size + covec_size + elmo_size,
+                                                  opt['contextual_hidden_size'], prefix=prefix, opt=opt,
+                                                  dropout=my_dropout)
+            self.query_encoder_high = OneLayerBRNN(self.query_encoder_low.output_size + covec_size + elmo_size,
+                                                   opt['contextual_hidden_size'], prefix=prefix, opt=opt,
+                                                   dropout=my_dropout)
 
         doc_hidden_size = self.doc_encoder_low.output_size + self.doc_encoder_high.output_size
         query_hidden_size = self.query_encoder_low.output_size + self.query_encoder_high.output_size
 
-        self.query_understand = OneLayerBRNN(query_hidden_size, opt['msum_hidden_size'], prefix='msum', opt=opt, dropout=my_dropout)
+        self.query_understand = OneLayerBRNN(query_hidden_size, opt['msum_hidden_size'], prefix='msum', opt=opt,
+                                             dropout=my_dropout)
         doc_attn_size = doc_hidden_size + covec_size + embedding_size
         query_attn_size = query_hidden_size + covec_size + embedding_size
         num_layers = 3
@@ -58,7 +66,8 @@ class DNetwork(nn.Module):
         self.deep_attn = DeepAttentionWrapper(doc_attn_size, query_attn_size, num_layers, prefix, opt, my_dropout)
 
         doc_und_size = doc_hidden_size + query_hidden_size + self.query_understand.output_size
-        self.doc_understand = OneLayerBRNN(doc_und_size, opt['msum_hidden_size'], prefix='msum', opt=opt, dropout=my_dropout)
+        self.doc_understand = OneLayerBRNN(doc_und_size, opt['msum_hidden_size'], prefix='msum', opt=opt,
+                                           dropout=my_dropout)
         query_mem_hidden_size = self.query_understand.output_size
         doc_mem_hidden_size = self.doc_understand.output_size
 
@@ -74,17 +83,18 @@ class DNetwork(nn.Module):
         self.decoder = SAN(doc_mem_hidden_size, query_mem_hidden_size, opt, prefix='decoder', dropout=my_dropout)
         if opt.get('v2_on', False):
             self.doc_sum_attn = SelfAttnWrapper(doc_mem_hidden_size, prefix='query_sum', opt=opt, dropout=my_dropout)
-            self.classifier = Classifier(query_mem_hidden_size, opt['label_size'], opt=opt, prefix='classifier', dropout=my_dropout)
+            self.classifier = Classifier(query_mem_hidden_size, opt['label_size'], opt=opt, prefix='classifier',
+                                         dropout=my_dropout)
         else:
             self.classifier = None
         self.opt = opt
 
     def forward(self, batch):
-        doc_input, query_input,\
-        doc_emb, query_emb,\
-        doc_cove_low, doc_cove_high,\
-        query_cove_low, query_cove_high,\
-        doc_mask, query_mask,\
+        doc_input, query_input, \
+        doc_emb, query_emb, \
+        doc_cove_low, doc_cove_high, \
+        query_cove_low, query_cove_high, \
+        doc_mask, query_mask, \
         doc_elmo, query_elmo = self.lexicon_encoder(batch)
 
         query_list, doc_list = [], []

@@ -13,3 +13,5 @@ nohup*
 *.pyproj
 *.sln
 launch_docker
+venv/
+.idea/

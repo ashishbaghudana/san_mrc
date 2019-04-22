@@ -2,15 +2,19 @@
 Credit from: https://worksheets.codalab.org/rest/bundles/0xbcd57bee090b421c982906709c8c27e1/contents/blob/
 """
 from __future__ import print_function
-from collections import Counter
-import string
-import re
+
 import argparse
 import json
+import string
 import sys
+from collections import Counter
+
+import re
+
 
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
+
     def remove_articles(text):
         return re.sub(r'\b(a|an|the)\b', ' ', text)
 
@@ -51,6 +55,7 @@ def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
         scores_for_ground_truths.append(score)
     return max(scores_for_ground_truths)
 
+
 def evaluate(dataset, predictions):
     f1 = exact_match = total = 0
     for article in dataset:
@@ -73,6 +78,7 @@ def evaluate(dataset, predictions):
     f1 = 100.0 * f1 / total
     return {'exact_match': exact_match, 'f1': f1}
 
+
 if __name__ == '__main__':
     expected_version = '1.1'
     parser = argparse.ArgumentParser(
@@ -82,7 +88,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     with open(args.dataset_file) as dataset_file:
         dataset_json = json.load(dataset_file)
-        if (dataset_json['version'] != expected_version):
+        if dataset_json['version'] != expected_version:
             print('Evaluation expects v-' + expected_version +
                   ', but got dataset with v-' + dataset_json['version'],
                   file=sys.stderr)

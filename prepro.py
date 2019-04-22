@@ -1,34 +1,28 @@
-import re
-import os
 import json
-import spacy
-import unicodedata
-import numpy as np
-import argparse
-import collections
-import multiprocessing
-import logging
-import random
-import tqdm
-import time
 import pickle
-from functools import partial
-from collections import Counter
-from my_utils.tokenizer import Vocabulary, reform_text, normalize_text, normal_query, END, build_vocab
-from my_utils.word2vec_utils import load_emb_vocab, build_embedding
-from my_utils.utils import set_environment
-from my_utils.data_utils import build_data, gen_name
+import time
+
+import os
+import spacy
+import tqdm
+
 from config import set_args
+from my_utils.data_utils import build_data, gen_name
 from my_utils.log_wrapper import create_logger
+from my_utils.tokenizer import END, build_vocab
+from my_utils.utils import set_environment
+from my_utils.word2vec_utils import load_emb_vocab, build_embedding
+
 """
-This script is to preproces SQuAD dataset.
+This script is to preprocess SQuAD dataset.
 """
 
-#Turn off
+# Turn off
 DEBUG_ON = False
 DEBUG_SIZE = 2000
 
-NLP = spacy.load('en', disable=['vectors', 'textcat', 'parser'])
+NLP = spacy.load('en_core_web_md', disable=['vectors', 'textcat', 'parser'])
+
 
 def load_data(path, is_train=True, v2_on=False):
     rows = []
@@ -52,47 +46,55 @@ def load_data(path, is_train=True, v2_on=False):
                         answer_start = answers[0]['answer_start']
                         answer_end = answer_start + len(answer)
                         if v2_on:
-                            sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
+                            sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer,
+                                      'answer_start': answer_start, 'answer_end': answer_end, 'label': label}
                         else:
-                            sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end}
+                            sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer,
+                                      'answer_start': answer_start, 'answer_end': answer_end}
                     else:
                         answer = END
                         answer_start = len(context) - len(END)
                         answer_end = len(context)
-                        sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
+                        sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer,
+                                  'answer_start': answer_start, 'answer_end': answer_end, 'label': label}
                 else:
-                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers, 'answer_start': -1, 'answer_end':-1}
+                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers,
+                              'answer_start': -1, 'answer_end': -1}
                 rows.append(sample)
                 if DEBUG_ON and (not is_train) and len(rows) == DEBUG_SIZE:
                     return rows
     return rows
 
+
 def main():
+    # Create a argument parser and read arguments from command line
     args = set_args()
+    # logger will be a global variable
     global logger
     start_time = time.time()
     logger = create_logger(__name__, to_disk=True, log_file=args.log_file)
     v2_on = args.v2_on
-    version = 'v1'
     if v2_on:
         msg = '~Processing SQuAD v2.0 dataset~'
         train_path = 'train-v2.0.json'
         dev_path = 'dev-v2.0.json'
         version = 'v2'
     else:
-        msg = '~Processing SQuAD dataset~'
+        msg = '~Processing SQuAD v1.1 dataset~'
         train_path = 'train-v1.1.json'
         dev_path = 'dev-v1.1.json'
+        version = 'v1'
 
     logger.warning(msg)
     if DEBUG_ON:
-        logger.error('***DEBUGING MODE***')
+        logger.error('***DEBUGGING MODE***')
     train_path = os.path.join(args.data_dir, train_path)
     valid_path = os.path.join(args.data_dir, dev_path)
 
     logger.info('The path of training data: {}'.format(train_path))
     logger.info('The path of validation data: {}'.format(valid_path))
     logger.info('{}-dim word vector path: {}'.format(args.embedding_dim, args.glove))
+
     # could be fasttext embedding
     emb_path = args.glove
     embedding_dim = args.embedding_dim
@@ -101,6 +103,7 @@ def main():
         logger.info('Loading fasttext vocab.')
     else:
         logger.info('Loading glove vocab.')
+
     # load data
     train_data = load_data(train_path, v2_on=v2_on)
     dev_data = load_data(valid_path, False, v2_on=v2_on)
@@ -114,9 +117,10 @@ def main():
     resource_path = 'resource'
     logger.info('Loading resource')
 
-    with open(os.path.join(resource_path, 'vocab_tag.pick'),'rb') as f:
+    # what do these vocab tags and vocab ners do?
+    with open(os.path.join(resource_path, 'vocab_tag.pick'), 'rb') as f:
         vocab_tag = pickle.load(f)
-    with open(os.path.join(resource_path,'vocab_ner.pick'),'rb') as f:
+    with open(os.path.join(resource_path, 'vocab_ner.pick'), 'rb') as f:
         vocab_ner = pickle.load(f)
 
     meta_path = gen_name(args.data_dir, args.meta, version, suffix='pick')
@@ -134,7 +138,8 @@ def main():
     dev_fout = gen_name(args.data_dir, args.dev_data, version)
     build_data(dev_data, vocab, vocab_tag, vocab_ner, dev_fout, False, NLP=NLP, v2_on=v2_on)
     end_time = time.time()
-    logger.warning('It totally took {} minutes to processe the data!!'.format((end_time - start_time) / 60.))
+    logger.warning('It totally took {} minutes to process the data!!'.format((end_time - start_time) / 60.))
+
 
 if __name__ == '__main__':
     main()

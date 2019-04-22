@@ -5,17 +5,14 @@ Author: xiaodl@microsoft.com
 '''
 
 import torch
-import math
 import torch.nn as nn
-from torch.autograd import Variable
-import torch.nn.functional as F
-from torch.nn.utils import weight_norm
-from .recurrent import BRNNEncoder, ContextualEmbed
+from allennlp.modules.elmo import Elmo
+
 from .dropout_wrapper import DropoutWrapper
-from .common import activation
+from .recurrent import ContextualEmbed
 from .similarity import AttentionWrapper
 from .sub_layers import PositionwiseNN
-from allennlp.modules.elmo import Elmo
+
 
 class LexiconEncoder(nn.Module):
     def create_embed(self, vocab_size, embed_dim, padding_idx=0):
@@ -52,7 +49,8 @@ class LexiconEncoder(nn.Module):
         return embed_dim
 
     def create_cove(self, vocab_size, embedding=None, embed_dim=300, padding_idx=0, opt=None):
-        self.ContextualEmbed= ContextualEmbed(opt['covec_path'], opt['vocab_size'], embedding=embedding, padding_idx=padding_idx)
+        self.ContextualEmbed = ContextualEmbed(opt['covec_path'], opt['vocab_size'], embedding=embedding,
+                                               padding_idx=padding_idx)
         return self.ContextualEmbed.output_size
 
     def create_prealign(self, x1_dim, x2_dim, opt={}, prefix='prealign'):
@@ -118,7 +116,7 @@ class LexiconEncoder(nn.Module):
 
     def patch(self, v):
         if self.opt['cuda']:
-            v = Variable(v.cuda(async=True))
+            v = Variable(v.cuda(async = True))
         else:
             v = Variable(v)
         return v

@@ -1,16 +1,13 @@
-import os
-import sys
 import json
-import torch
-import random
-import string
-import logging
-import numpy as np
 import pickle as pkl
-from shutil import copyfile
-from my_utils.tokenizer import UNK_ID
-from allennlp.modules.elmo import batch_to_ids
+
+import random
+import torch
 from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
+from allennlp.modules.elmo import batch_to_ids
+
+from my_utils.tokenizer import UNK_ID
+
 
 def load_meta(opt, meta_path):
     with open(meta_path, 'rb') as f:
@@ -20,6 +17,7 @@ def load_meta(opt, meta_path):
     opt['ner_vocab_size'] = len(meta['vocab_ner'])
     opt['vocab_size'] = len(meta['vocab'])
     return embedding, opt
+
 
 class BatchGen:
     def __init__(self, data_path, batch_size, gpu, is_train=True, doc_maxlen=1000, dropout_w=0.05, dw_type=0,
@@ -55,7 +53,7 @@ class BatchGen:
                 cnt += 1
                 if is_train and (len(sample['doc_tok']) > doc_maxlen or \
                                  sample['start'] is None or sample['end'] is None):
-                    #import pdb; pdb.set_trace()
+                    # import pdb; pdb.set_trace()
                     print(sample['uid'])
                     continue
                 data.append(sample)
@@ -79,7 +77,8 @@ class BatchGen:
                 return [UNK_ID if e in ids else e for e in arr]
             else:
                 return [UNK_ID if random.uniform(0, 1) < self.dropout_w else e for e in arr]
-        else: return arr
+        else:
+            return arr
 
     def __len__(self):
         return len(self.data)

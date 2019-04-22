@@ -3,11 +3,8 @@ Created October, 2017
 Author: xiaodl@microsoft.com
 '''
 
-
-from copy import deepcopy
 import torch
 from torch.nn import Parameter
-from functools import wraps
 
 
 # Adapted from

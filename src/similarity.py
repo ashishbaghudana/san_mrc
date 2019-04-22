@@ -3,15 +3,17 @@ Created October, 2017
 Author: xiaodl@microsoft.com
 '''
 
+import numpy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy
-from torch.nn.utils import weight_norm
 from torch.nn.parameter import Parameter
+from torch.nn.utils import weight_norm
+
 from .common import activation
 from .common import init_wrapper
 from .dropout_wrapper import DropoutWrapper
+
 
 class DotProduct(nn.Module):
     def __init__(self, x1_dim, x2_dim, prefix='sim', opt={}, dropout=None):
@@ -56,9 +58,9 @@ class DotProductProject(nn.Module):
                 self.proj_2 = weight_norm(self.proj_2)
 
         if self.scale_on:
-            self.scalar = Parameter(torch.ones(1,1,1) / (self.hidden_size ** 0.5), requires_grad=False)
+            self.scalar = Parameter(torch.ones(1, 1, 1) / (self.hidden_size ** 0.5), requires_grad=False)
         else:
-            self.sclalar = Parameter(torch.ones(1,1, self.hidden_size), requires_grad=True)
+            self.sclalar = Parameter(torch.ones(1, 1, self.hidden_size), requires_grad=True)
 
     def forward(self, x1, x2):
         assert x1.size(2) == x2.size(2)
@@ -132,6 +134,7 @@ class BilinearSum(nn.Module):
 
 class Trilinear(nn.Module):
     """Used in BiDAF?"""
+
     def __init__(self, x1_dim, x2_dim, prefix='sim', opt={}, dropout=None):
         super(Trilinear, self).__init__()
         self.prefix = prefix

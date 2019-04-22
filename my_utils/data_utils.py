@@ -1,14 +1,17 @@
-import re
-import os
-import numpy as np
-import logging
-import tqdm
 import json
-from functools import partial
+import logging
 from collections import Counter
-from my_utils.tokenizer import Vocabulary, reform_text
+
+import numpy as np
+import os
+import re
+import tqdm
+
+from my_utils.tokenizer import reform_text
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 def compute_acc(score_list, gold, threshold=0.5):
     correct = 0
@@ -17,13 +20,16 @@ def compute_acc(score_list, gold, threshold=0.5):
         if lab == gold[key]: correct += 1
     return correct * 100.0 / len(gold)
 
+
 def gen_name(dir, path, version, suffix='json'):
     fname = '{}_{}.{}'.format(path, version, suffix)
     return os.path.join(dir, fname)
 
+
 def gen_gold_name(dir, path, version, suffix='json'):
     fname = '{}-{}.{}'.format(path, version, suffix)
     return os.path.join(dir, fname)
+
 
 def predict_squad(model, data, v2_on=False):
     data.reset()
@@ -39,6 +45,7 @@ def predict_squad(model, data, v2_on=False):
                 label_predictions[uid] = pred
     return span_predictions, label_predictions
 
+
 def load_squad_v2_label(path):
     rows = {}
     with open(path, encoding="utf8") as f:
@@ -52,17 +59,22 @@ def load_squad_v2_label(path):
                 rows[uid] = label
     return rows
 
+
 def postag_func(toks, vocab):
     return [vocab[w.tag_] for w in toks if len(w.text) > 0]
+
 
 def nertag_func(toks, vocab):
     return [vocab['{}_{}'.format(w.ent_type_, w.ent_iob_)] for w in toks if len(w.text) > 0]
 
+
 def tok_func(toks, vocab, doc_toks=None):
     return [vocab[w.text] for w in toks if len(w.text) > 0]
 
+
 def raw_txt_func(toks):
     return [w.text for w in toks if len(w.text) > 0]
+
 
 def match_func(question, context):
     counter = Counter(w.text.lower() for w in context)
@@ -73,9 +85,11 @@ def match_func(question, context):
     question_lemma = {w.lemma_ if w.lemma_ != '-PRON-' else w.text.lower() for w in question}
     match_origin = [1 if w in question_word else 0 for w in context]
     match_lower = [1 if w.text.lower() in question_lower else 0 for w in context]
-    match_lemma = [1 if (w.lemma_ if w.lemma_ != '-PRON-' else w.text.lower()) in question_lemma else 0 for w in context]
+    match_lemma = [1 if (w.lemma_ if w.lemma_ != '-PRON-' else w.text.lower()) in question_lemma else 0 for w in
+                   context]
     features = np.asarray([freq, match_origin, match_lower, match_lemma], dtype=np.float32).T.tolist()
     return features
+
 
 def build_span(context, answer, context_token, answer_start, answer_end, is_train=True):
     p_str = 0
@@ -102,6 +116,7 @@ def build_span(context, answer, context_token, answer_start, answer_end, is_trai
     else:
         return (t_start, t_end, t_span)
 
+
 def feature_func(sample, query_tokend, doc_tokend, vocab, vocab_tag, vocab_ner, is_train, v2_on=False):
     # features
     fea_dict = {}
@@ -125,7 +140,7 @@ def feature_func(sample, query_tokend, doc_tokend, vocab, vocab_tag, vocab_ner, 
     fea_dict['query_ctok'] = query_toks
 
     start, end, span = build_span(sample['context'], answer, doc_toks, answer_start,
-                                    answer_end, is_train=is_train)
+                                  answer_end, is_train=is_train)
     if is_train and (start == -1 or end == -1): return None
     if not is_train:
         fea_dict['context'] = sample['context']
@@ -134,19 +149,27 @@ def feature_func(sample, query_tokend, doc_tokend, vocab, vocab_tag, vocab_ner, 
     fea_dict['end'] = end
     return fea_dict
 
+
 def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=16, NLP=None, v2_on=False):
-    passages = [reform_text(sample['context']) for sample in data]
-    passage_tokened = [doc for doc in NLP.pipe(passages, batch_size=1000, n_threads=thread)]
+    logger.info('reforming text for passages')
+    passages = [reform_text(sample['context']) for sample in tqdm.tqdm(data, total=len(data))]
+    logger.info('tokenizing text for passages')
+    passage_tokened = [doc for doc in
+                       tqdm.tqdm(NLP.pipe(passages, batch_size=1000, n_threads=thread), total=len(passages))]
     logger.info('Done with document tokenize')
 
-    question_list = [reform_text(sample['question']) for sample in data]
-    question_tokened = [question for question in NLP.pipe(question_list, batch_size=1000, n_threads=thread)]
+    logger.info('reforming text for questions')
+    question_list = [reform_text(sample['question']) for sample in tqdm.tqdm(data, total=len(data))]
+    logger.info('tokenizing text for questions')
+    question_tokened = [question for question in
+                        tqdm.tqdm(NLP.pipe(question_list, batch_size=1000, n_threads=thread), total=len(question_list))]
     logger.info('Done with query tokenize')
     dropped_sample = 0
     with open(fout, 'w', encoding='utf-8') as writer:
-        for idx, sample in enumerate(data):
-            if idx % 5000 == 0: logger.info('parse {}-th sample'.format(idx))
-            feat_dict = feature_func(sample, question_tokened[idx], passage_tokened[idx], vocab, vocab_tag, vocab_ner, is_train, v2_on)
+        for idx, sample in enumerate(tqdm.tqdm(data, total=len(data))):
+            # if idx % 5000 == 0: logger.info('parse {}-th sample'.format(idx))
+            feat_dict = feature_func(sample, question_tokened[idx], passage_tokened[idx], vocab, vocab_tag, vocab_ner,
+                                     is_train, v2_on)
             if feat_dict is not None:
                 writer.write('{}\n'.format(json.dumps(feat_dict)))
     logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))

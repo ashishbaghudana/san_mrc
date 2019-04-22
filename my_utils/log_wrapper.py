@@ -1,7 +1,9 @@
-import sys
 import logging
+import sys
 from time import gmtime, strftime
+
 from colorlog import ColoredFormatter
+
 
 def create_logger(name, silent=False, to_disk=False, log_file=None, prefix=None):
     """Logger wrapper
@@ -15,10 +17,10 @@ def create_logger(name, silent=False, to_disk=False, log_file=None, prefix=None)
         datefmt='%Y-%m-%d %I:%M:%S',
         reset=True,
         log_colors={
-            'DEBUG':    'cyan',
-            'INFO':     'green',
-            'WARNING':  'yellow',
-            'ERROR':    'red',
+            'DEBUG': 'cyan',
+            'INFO': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
             'CRITICAL': 'red,bg_white',
         },
         secondary_log_colors={},

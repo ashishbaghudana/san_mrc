@@ -4,22 +4,21 @@ Created October, 2017
 Author: xiaodl@microsoft.com
 '''
 
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import numpy as np
 import logging
-import math
-from collections import defaultdict
 
-from torch.optim.lr_scheduler import *
+import numpy as np
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 from torch.autograd import Variable
+from torch.optim.lr_scheduler import *
+
 from my_utils.utils import AverageMeter
 from .dreader import DNetwork
 
 logger = logging.getLogger(__name__)
+
+
 
 class DocReaderModel(object):
     def __init__(self, opt, embedding=None, state_dict=None):
@@ -81,7 +80,7 @@ class DocReaderModel(object):
         self.network.train()
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
-            if self.opt.get('v2_on', False):
+        if self.opt.get('v2_on', False):
                 label = Variable(batch['label'].cuda(async=True), requires_grad=False)
         else:
             y = Variable(batch['start']), Variable(batch['end'])
@@ -147,16 +146,15 @@ class DocReaderModel(object):
                 s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
                 predictions.append(text[i][s_offset:e_offset])
                 best_scores.append(best_score)
-        #if self.opt.get('v2_on', False):
+        # if self.opt.get('v2_on', False):
         #    return (predictions, best_scores, label_predictions)
-        #return (predictions, best_scores)
+        # return (predictions, best_scores)
         return (predictions, best_scores, label_predictions)
 
-
-    def setup_eval_embed(self, eval_embed, padding_idx = 0):
+    def setup_eval_embed(self, eval_embed, padding_idx=0):
         self.network.lexicon_encoder.eval_embed = nn.Embedding(eval_embed.size(0),
-                                               eval_embed.size(1),
-                                               padding_idx = padding_idx)
+                                                               eval_embed.size(1),
+                                                               padding_idx=padding_idx)
         self.network.lexicon_encoder.eval_embed.weight.data = eval_embed
         for p in self.network.lexicon_encoder.eval_embed.parameters():
             p.requires_grad = False

@@ -5,9 +5,11 @@ Author: xiaodl@microsoft.com
 import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
-from torch.nn.utils.rnn import pad_packed_sequence as unpack
 from torch.nn.utils.rnn import pack_padded_sequence as pack
+from torch.nn.utils.rnn import pad_packed_sequence as unpack
+
 from .my_optim import weight_norm as WN
+
 
 class OneLayerBRNN(nn.Module):
     def __init__(self, input_size, hidden_size, prefix='stack_rnn', opt={}, dropout=None):
@@ -26,13 +28,14 @@ class OneLayerBRNN(nn.Module):
     def forward(self, x, x_mask):
         x = x.transpose(0, 1)
         size = list(x.size())
-        #x = self.dropout(x)
+        # x = self.dropout(x)
         rnn_output, h = self.rnn(x)
         if self.maxout_on:
             rnn_output = rnn_output.view(size[0], size[1], self.hidden_size, 2).max(-1)[0]
         # Transpose back
         hiddens = rnn_output.transpose(0, 1)
         return hiddens
+
 
 class BRNNEncoder(nn.Module):
     def __init__(self, input_size, hidden_size, prefix='rnn', opt={}, dropout=None):
@@ -43,7 +46,8 @@ class BRNNEncoder(nn.Module):
         self.weight_norm_on = opt.get('{}_weight_norm_on'.format(self.prefix), False)
         self.top_layer_only = opt.get('{}_top_layer_only'.format(self.prefix), False)
         self.num_layers = opt.get('{}_num_layers'.format(self.prefix), 1)
-        self.rnn = getattr(nn, self.cell_type, default=nn.GRU)(input_size, hidden_size, self.num_layers, bidirectional=True)
+        self.rnn = getattr(nn, self.cell_type, default=nn.GRU)(input_size, hidden_size, self.num_layers,
+                                                               bidirectional=True)
         if self.weight_norm_on:
             self.rnn = WN(self.rnn)
         if self.top_layer_only:
@@ -57,7 +61,7 @@ class BRNNEncoder(nn.Module):
         if self.cell_type == 'lstm':
             h = h[0]
         shape = h.size()
-        h = h.view(self.num_layers, 2, shape[1], shape[3]).transpose(1,2).contiguous()
+        h = h.view(self.num_layers, 2, shape[1], shape[3]).transpose(1, 2).contiguous()
         h = h.view(self.num_layers, shape[1], 2 * shape[3])
         if self.top_layer_only:
             return h[-1]
@@ -65,11 +69,11 @@ class BRNNEncoder(nn.Module):
             return h.transose(0, 1).contiguous().view(x.size(0), -1)
 
 
-#------------------------------
+# ------------------------------
 # Contextual embedding
 # TODO: remove packing to speed up
 # Credit from: https://github.com/salesforce/cove
-#------------------------------
+# ------------------------------
 class ContextualEmbedV2(nn.Module):
     def __init__(self, model_path, padding_idx=0):
         super(ContextualEmbedV2, self).__init__()
@@ -77,9 +81,10 @@ class ContextualEmbedV2(nn.Module):
         self.rnn1 = nn.LSTM(300, 300, num_layers=1, bidirectional=True)
         self.rnn2 = nn.LSTM(600, 300, num_layers=1, bidirectional=True)
         state_dict1 = dict([(name, param.data) if isinstance(param, Parameter) else (name, param)
-                        for name, param in state_dict.items() if '0' in name])
-        state_dict2 = dict([(name.replace('1', '0'), param.data) if isinstance(param, Parameter) else (name.replace('1', '0'), param)
-                        for name, param in state_dict.items() if '1' in name])
+                            for name, param in state_dict.items() if '0' in name])
+        state_dict2 = dict(
+            [(name.replace('1', '0'), param.data) if isinstance(param, Parameter) else (name.replace('1', '0'), param)
+             for name, param in state_dict.items() if '1' in name])
         self.rnn1.load_state_dict(state_dict1)
         self.rnn2.load_state_dict(state_dict2)
         for p in self.parameters(): p.requires_grad = False
@@ -117,16 +122,17 @@ class ContextualEmbed(nn.Module):
         self.rnn1 = nn.LSTM(300, 300, num_layers=1, bidirectional=True)
         self.rnn2 = nn.LSTM(600, 300, num_layers=1, bidirectional=True)
         state_dict1 = dict([(name, param.data) if isinstance(param, Parameter) else (name, param)
-                        for name, param in state_dict.items() if '0' in name])
-        state_dict2 = dict([(name.replace('1', '0'), param.data) if isinstance(param, Parameter) else (name.replace('1', '0'), param)
-                        for name, param in state_dict.items() if '1' in name])
+                            for name, param in state_dict.items() if '0' in name])
+        state_dict2 = dict(
+            [(name.replace('1', '0'), param.data) if isinstance(param, Parameter) else (name.replace('1', '0'), param)
+             for name, param in state_dict.items() if '1' in name])
         self.rnn1.load_state_dict(state_dict1)
         self.rnn2.load_state_dict(state_dict2)
         for p in self.parameters(): p.requires_grad = False
         self.output_size = 600
 
     def setup_eval_embed(self, eval_embed, padding_idx=0):
-        self.eval_embed = nn.Embedding(eval_embed.size(0), eval_embed.size(1), padding_idx = padding_idx)
+        self.eval_embed = nn.Embedding(eval_embed.size(0), eval_embed.size(1), padding_idx=padding_idx)
         self.eval_embed.weight.data = eval_embed
         for p in self.eval_embed.parameters():
             p.requires_grad = False
@@ -145,4 +151,3 @@ class ContextualEmbed(nn.Module):
         output1 = output1[_indices]
         output2 = output2[_indices]
         return output1, output2
-

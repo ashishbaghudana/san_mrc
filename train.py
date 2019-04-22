@@ -1,24 +1,16 @@
-import re
-import os
-import sys
-import random
-import string
-import logging
-import argparse
 import json
-import torch
-import numpy as np
-from shutil import copyfile
+import os
 from datetime import datetime
-from collections import Counter, defaultdict
-from src.model import DocReaderModel
-from src.batcher import load_meta, BatchGen
+from shutil import copyfile
+
 from config import set_args
-from my_utils.utils import set_environment
+from my_utils.data_utils import predict_squad, gen_name, gen_gold_name, load_squad_v2_label, compute_acc
 from my_utils.log_wrapper import create_logger
 from my_utils.squad_eval import evaluate
-from my_utils.data_utils import predict_squad, gen_name, gen_gold_name, load_squad_v2_label, compute_acc
 from my_utils.squad_eval_v2 import my_evaluation as evaluate_v2
+from my_utils.utils import set_environment
+from src.batcher import load_meta, BatchGen
+from src.model import DocReaderModel
 
 args = set_args()
 # set model dir
@@ -29,13 +21,15 @@ model_dir = os.path.abspath(model_dir)
 # set environment
 set_environment(args.seed, args.cuda)
 # setup logger
-logger =  create_logger(__name__, to_disk=True, log_file=args.log_file)
+logger = create_logger(__name__, to_disk=True, log_file=args.log_file)
+
 
 def load_squad(data_path):
     with open(data_path) as dataset_file:
         dataset_json = json.load(dataset_file)
         dataset = dataset_json['data']
         return dataset
+
 
 def main():
     logger.info('Launching the SAN')
@@ -62,18 +56,16 @@ def main():
                           with_label=args.v2_on,
                           elmo_on=args.elmo_on)
     dev_data = BatchGen(dev_path,
-                          batch_size=args.batch_size,
-                          gpu=args.cuda, is_train=False, elmo_on=args.elmo_on)
-
-
+                        batch_size=args.batch_size,
+                        gpu=args.cuda, is_train=False, elmo_on=args.elmo_on)
 
     test_data = None
     test_gold = None
 
     if os.path.exists(test_path):
         test_data = BatchGen(test_path,
-                            batch_size=args.batch_size,
-                            gpu=args.cuda, is_train=False, elmo_on=args.elmo_on)
+                             batch_size=args.batch_size,
+                             gpu=args.cuda, is_train=False, elmo_on=args.elmo_on)
 
     # load golden standard
     dev_gold = load_squad(dev_gold_path)
@@ -87,6 +79,8 @@ def main():
     # print network
     logger.info('\n{}\n{}\n'.format(headline, model.network))
     model.setup_eval_embed(embedding)
+
+    import pdb; pdb.set_trace()
 
     logger.info("Total number of params: {}".format(model.total_param))
     if args.cuda:
@@ -113,7 +107,6 @@ def main():
         else:
             metric = evaluate(dev_gold, results)
             em, f1 = metric['exact_match'], metric['f1']
-
 
         output_path = os.path.join(model_dir, 'dev_output_{}.json'.format(epoch))
         with open(output_path, 'w') as f:
@@ -146,11 +139,14 @@ def main():
 
         model.save(model_file, epoch)
         if em + f1 > best_em_score + best_f1_score:
-            copyfile(os.path.join(model_dir, model_file), os.path.join(model_dir, 'best_{}_checkpoint.pt'.format(version)))
+            copyfile(os.path.join(model_dir, model_file),
+                     os.path.join(model_dir, 'best_{}_checkpoint.pt'.format(version)))
             best_em_score, best_f1_score = em, f1
             logger.info('Saved the new best model and prediction')
 
-        logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1, best_em_score, best_f1_score))
+        logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1,
+                                                                                                       best_em_score,
+                                                                                                       best_f1_score))
         if args.v2_on:
             logger.warning("Epoch {0} - ACC: {1:.4f}".format(epoch, acc))
         if metric is not None:
@@ -160,6 +156,7 @@ def main():
             logger.warning("Epoch {0} - test EM: {1:.3f} F1: {2:.3f}".format(epoch, test_em, test_f1))
             if args.v2_on:
                 logger.warning("Epoch {0} - test ACC: {1:.4f}".format(epoch, test_acc))
+
 
 if __name__ == '__main__':
     main()
