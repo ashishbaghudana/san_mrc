@@ -38,6 +38,10 @@ def main():
     version = 'v1'
     gold_version = 'v1.1'
 
+    if args.v2_on:
+        version = 'v2'
+        gold_version = 'v2.0'
+
     dev_path = gen_name(args.data_dir, args.dev_data, version)
     dev_gold_path = gen_gold_name(args.data_dir, args.dev_gold, gold_version)
 
@@ -45,9 +49,7 @@ def main():
     test_gold_path = gen_gold_name(args.data_dir, args.test_gold, gold_version)
 
     if args.v2_on:
-        version = 'v2'
-        gold_version = 'v2.0'
-        dev_labels = load_squad_v2_label(args.dev_gold)
+        dev_labels = load_squad_v2_label(dev_gold_path)
 
     embedding, opt = load_meta(opt, gen_name(args.data_dir, args.meta, version, suffix='pick'))
     train_data = BatchGen(gen_name(args.data_dir, args.train_data, version),
@@ -79,8 +81,6 @@ def main():
     # print network
     logger.info('\n{}\n{}\n'.format(headline, model.network))
     model.setup_eval_embed(embedding)
-
-    import pdb; pdb.set_trace()
 
     logger.info("Total number of params: {}".format(model.total_param))
     if args.cuda:
