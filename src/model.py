@@ -19,7 +19,6 @@ from .dreader import DNetwork
 logger = logging.getLogger(__name__)
 
 
-
 class DocReaderModel(object):
     def __init__(self, opt, embedding=None, state_dict=None):
         self.opt = opt
@@ -80,7 +79,7 @@ class DocReaderModel(object):
         self.network.train()
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
-        if self.opt.get('v2_on', False):
+            if self.opt.get('v2_on', False):
                 label = Variable(batch['label'].cuda(async=True), requires_grad=False)
         else:
             y = Variable(batch['start']), Variable(batch['end'])
