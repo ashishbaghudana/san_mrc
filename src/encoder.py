@@ -7,6 +7,7 @@ Author: xiaodl@microsoft.com
 import torch
 import torch.nn as nn
 from allennlp.modules.elmo import Elmo
+from torch.autograd import Variable
 
 from .dropout_wrapper import DropoutWrapper
 from .recurrent import ContextualEmbed

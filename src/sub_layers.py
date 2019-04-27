@@ -50,7 +50,7 @@ class Highway(nn.Module):
 
     def forward(self, x):
         for layer in range(self.num_layers):
-            gate = F.sigmoid(self.gate[layer](x))
+            gate = torch.sigmoid(self.gate[layer](x))
             nonlinear = self.f(self.nonlinear[layer](x))
             linear = self.linear[layer](x)
             x = gate * nonlinear + (1 - gate) * linear

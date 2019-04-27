@@ -158,5 +158,5 @@ class DNetwork(nn.Module):
         pred_score = None
         if self.classifier is not None:
             doc_sum = self.doc_sum_attn(doc_mem, doc_mask)
-            pred_score = F.sigmoid(self.classifier(doc_sum, query_mem, doc_mask))
+            pred_score = torch.sigmoid(self.classifier(doc_sum, query_mem, doc_mask))
         return start_scores, end_scores, pred_score
