@@ -13,6 +13,7 @@ from .dropout_wrapper import DropoutWrapper
 from .recurrent import ContextualEmbed
 from .similarity import AttentionWrapper
 from .sub_layers import PositionwiseNN
+from pytorch_pretrained_bert import BertModel
 
 
 class LexiconEncoder(nn.Module):
@@ -115,9 +116,14 @@ class LexiconEncoder(nn.Module):
         self.doc_input_size = doc_input_size
         self.query_input_size = que_input_size
 
+        # BERT
+        self.bert = BertModel.from_pretrained('bert-base-uncased')
+        self.bert.eval()
+        self.bert.to('cuda')
+
     def patch(self, v):
         if self.opt['cuda']:
-            v = Variable(v.cuda(async = True))
+            v = Variable(v.cuda(async=True))
         else:
             v = Variable(v)
         return v
@@ -176,13 +182,15 @@ class LexiconEncoder(nn.Module):
             drnn_input_list.append(doc_fea)
 
         if self.elmo_on:
-            doc_ctok = self.patch(batch['doc_ctok'])
-            query_ctok = self.patch(batch['query_ctok'])
-            doc_elmo = self.elmo(doc_ctok)['elmo_representations']
-            query_elmo = self.elmo(query_ctok)['elmo_representations']
+            doc_ctok = self.patch(batch['doc_ctok']).to('cuda')
+            query_ctok = self.patch(batch['query_ctok']).to('cuda')
+            with torch.no_grad():
+                doc_bert, _ = self.bert(doc_ctok)
+            with torch.no_grad():
+                query_bert, _ = self.bert(query_ctok)
         else:
-            doc_elmo = None
-            query_elmo = None
+            doc_bert = None
+            query_bert = None
 
         doc_input = torch.cat(drnn_input_list, 2)
         query_input = torch.cat(qrnn_input_list, 2)
@@ -192,4 +200,6 @@ class LexiconEncoder(nn.Module):
             doc_input = self.doc_pwnn(doc_input)
             query_input = self.que_pwnn(query_input)
 
-        return doc_input, query_input, doc_emb, query_emb, doc_cove_low, doc_cove_high, query_cove_low, query_cove_high, doc_mask, query_mask, doc_elmo, query_elmo
+        return (
+        doc_input, query_input, doc_emb, query_emb, doc_cove_low, doc_cove_high, query_cove_low, query_cove_high,
+        doc_mask, query_mask, doc_bert, query_bert)

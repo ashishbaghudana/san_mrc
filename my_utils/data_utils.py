@@ -150,19 +150,22 @@ def feature_func(sample, query_tokend, doc_tokend, vocab, vocab_tag, vocab_ner, 
     return fea_dict
 
 
-def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=16, NLP=None, v2_on=False):
+def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=16, NLP=None, v2_on=False,
+               bert_tokenizer=None):
     logger.info('reforming text for passages')
     passages = [reform_text(sample['context']) for sample in tqdm.tqdm(data, total=len(data))]
     logger.info('tokenizing text for passages')
     passage_tokened = [doc for doc in
                        tqdm.tqdm(NLP.pipe(passages, batch_size=1000, n_threads=thread), total=len(passages))]
     logger.info('Done with document tokenize')
-
+    passage_bert_tokened = [bert_tokenizer.tokenize(doc) for doc in tqdm.tqdm(passages, total=len(passages))]
     logger.info('reforming text for questions')
     question_list = [reform_text(sample['question']) for sample in tqdm.tqdm(data, total=len(data))]
     logger.info('tokenizing text for questions')
     question_tokened = [question for question in
                         tqdm.tqdm(NLP.pipe(question_list, batch_size=1000, n_threads=thread), total=len(question_list))]
+    question_bert_tokened = [bert_tokenizer.tokenize(question) for question in
+                             tqdm.tqdm(question_list, total=len(question_list))]
     logger.info('Done with query tokenize')
     dropped_sample = 0
     with open(fout, 'w', encoding='utf-8') as writer:
@@ -170,6 +173,10 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=16, NLP
             # if idx % 5000 == 0: logger.info('parse {}-th sample'.format(idx))
             feat_dict = feature_func(sample, question_tokened[idx], passage_tokened[idx], vocab, vocab_tag, vocab_ner,
                                      is_train, v2_on)
+            feat_dict['doc_bert_ctok'] = passage_bert_tokened[idx]
+            feat_dict['query_bert_ctok'] = question_bert_tokened[idx]
+
+
             if feat_dict is not None:
                 writer.write('{}\n'.format(json.dumps(feat_dict)))
     logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))

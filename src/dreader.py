@@ -35,18 +35,18 @@ class DNetwork(nn.Module):
         contextual_share = opt.get('contextual_encoder_share', False)
         prefix = 'contextual'
         # doc_hidden_size
-        self.doc_encoder_low = OneLayerBRNN(doc_input_size + covec_size + elmo_size, opt['contextual_hidden_size'],
+        self.doc_encoder_low = OneLayerBRNN(doc_input_size + covec_size + 768, opt['contextual_hidden_size'],
                                             prefix=prefix, opt=opt, dropout=my_dropout)
-        self.doc_encoder_high = OneLayerBRNN(self.doc_encoder_low.output_size + covec_size + elmo_size,
+        self.doc_encoder_high = OneLayerBRNN(self.doc_encoder_low.output_size + covec_size + 768,
                                              opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
         if contextual_share:
             self.query_encoder_low = self.doc_encoder_low
             self.query_encoder_high = self.doc_encoder_high
         else:
-            self.query_encoder_low = OneLayerBRNN(query_input_size + covec_size + elmo_size,
+            self.query_encoder_low = OneLayerBRNN(query_input_size + covec_size + 768,
                                                   opt['contextual_hidden_size'], prefix=prefix, opt=opt,
                                                   dropout=my_dropout)
-            self.query_encoder_high = OneLayerBRNN(self.query_encoder_low.output_size + covec_size + elmo_size,
+            self.query_encoder_high = OneLayerBRNN(self.query_encoder_low.output_size + covec_size + 768,
                                                    opt['contextual_hidden_size'], prefix=prefix, opt=opt,
                                                    dropout=my_dropout)
 
@@ -59,8 +59,8 @@ class DNetwork(nn.Module):
         query_attn_size = query_hidden_size + covec_size + embedding_size
         num_layers = 3
         if opt['elmo_att_on']:
-            doc_attn_size += elmo_size
-            query_attn_size += elmo_size
+            doc_attn_size += 768
+            query_attn_size += 768
 
         prefix = 'deep_att'
         self.deep_attn = DeepAttentionWrapper(doc_attn_size, query_attn_size, num_layers, prefix, opt, my_dropout)
@@ -73,7 +73,7 @@ class DNetwork(nn.Module):
 
         if opt['self_attention_on']:
             att_size = embedding_size + covec_size + doc_hidden_size + query_hidden_size + self.query_understand.output_size + self.doc_understand.output_size
-            if opt['elmo_self_att_on']: att_size += elmo_size
+            if opt['elmo_self_att_on']: att_size += 768
             self.doc_self_attn = AttentionWrapper(att_size, att_size, prefix='self_att', opt=opt, dropout=my_dropout)
             doc_mem_hidden_size = doc_mem_hidden_size * 2
             self.doc_mem_gen = OneLayerBRNN(doc_mem_hidden_size, opt['msum_hidden_size'], 'msum', opt, my_dropout)

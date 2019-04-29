@@ -12,6 +12,7 @@ from my_utils.log_wrapper import create_logger
 from my_utils.tokenizer import END, build_vocab
 from my_utils.utils import set_environment
 from my_utils.word2vec_utils import load_emb_vocab, build_embedding
+from pytorch_pretrained_bert import BertTokenizer
 
 """
 This script is to preprocess SQuAD dataset.
@@ -22,6 +23,7 @@ DEBUG_ON = False
 DEBUG_SIZE = 2000
 
 NLP = spacy.load('en_core_web_md', disable=['vectors', 'textcat', 'parser'])
+BERT_TOKENIZER = BertTokenizer.from_pretrained('bert-base-cased')
 
 
 def load_data(path, is_train=True, v2_on=False):
@@ -132,11 +134,13 @@ def main():
 
     logger.info('building training data')
     train_fout = gen_name(args.data_dir, args.train_data, version)
-    build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True, NLP=NLP, v2_on=v2_on)
+    build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True, NLP=NLP, v2_on=v2_on,
+               bert_tokenizer=BERT_TOKENIZER)
 
     logger.info('building dev data')
     dev_fout = gen_name(args.data_dir, args.dev_data, version)
-    build_data(dev_data, vocab, vocab_tag, vocab_ner, dev_fout, False, NLP=NLP, v2_on=v2_on)
+    build_data(dev_data, vocab, vocab_tag, vocab_ner, dev_fout, False, NLP=NLP, v2_on=v2_on,
+               bert_tokenizer=BERT_TOKENIZER)
     end_time = time.time()
     logger.warning('It totally took {} minutes to process the data!!'.format((end_time - start_time) / 60.))
 

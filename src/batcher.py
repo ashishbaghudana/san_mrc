@@ -5,6 +5,7 @@ import random
 import torch
 from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
 from allennlp.modules.elmo import batch_to_ids
+from pytorch_pretrained_bert import BertTokenizer
 
 from my_utils.tokenizer import UNK_ID
 
@@ -30,6 +31,7 @@ class BatchGen:
         self.dropout_w = dropout_w
         self.dw_type = dw_type
         self.elmo_on = elmo_on
+        self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
 
         self.data = self.load(self.data_path, is_train, doc_maxlen)
 
@@ -89,18 +91,18 @@ class BatchGen:
             batch_size = len(batch)
             batch_dict = {}
 
-            doc_len = max(len(x['doc_tok']) for x in batch)
+            doc_len = max(len(x['doc_bert_ctok']) for x in batch)
             # feature vector
             feature_len = len(eval(batch[0]['doc_fea'])[0]) if len(batch[0].get('doc_fea', [])) > 0 else 0
             doc_id = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_tag = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_ent = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_feature = torch.Tensor(batch_size, doc_len, feature_len).fill_(0)
-            query_len = max(len(x['query_tok']) for x in batch)
+            query_len = max(len(x['query_bert_ctok']) for x in batch)
             query_id = torch.LongTensor(batch_size, query_len).fill_(0)
             if self.elmo_on:
-                doc_cid = torch.LongTensor(batch_size, doc_len, ELMoCharacterMapper.max_word_length).fill_(0)
-                query_cid = torch.LongTensor(batch_size, query_len, ELMoCharacterMapper.max_word_length).fill_(0)
+                doc_cid = torch.LongTensor(batch_size, doc_len).fill_(0)
+                query_cid = torch.LongTensor(batch_size, query_len).fill_(0)
 
             for i, sample in enumerate(batch):
                 doc_select_len = min(len(sample['doc_tok']), doc_len)
@@ -121,17 +123,13 @@ class BatchGen:
                 query_select_len = min(len(query_tok), query_len)
                 query_id[i, :len(sample['query_tok'])] = torch.LongTensor(query_tok[:query_select_len])
                 if self.elmo_on:
-                    doc_ctok = sample['doc_ctok']
-                    for j, w in enumerate(batch_to_ids(doc_ctok)[0].tolist()):
-                        if j >= doc_select_len:
-                            break
-                        doc_cid[i, j, :len(w)] = torch.LongTensor(w)
-
-                    query_ctok = sample['query_ctok']
-                    for j, w in enumerate(batch_to_ids(query_ctok)[0].tolist()):
-                        if j >= query_select_len:
-                            break
-                        query_cid[i, j, :len(w)] = torch.LongTensor(w)
+                    doc_ctok = sample['doc_bert_ctok']
+                    doc_tokens = self.bert_tokenizer.convert_tokens_to_ids(doc_ctok)[:doc_len]
+                    doc_cid[i, :len(doc_tokens)] = torch.LongTensor(doc_tokens)
+                    query_ctok = sample['query_bert_ctok']
+                    query_ctok = self.bert_tokenizer.tokenize(' '.join(query_ctok))
+                    query_tokens = self.bert_tokenizer.convert_tokens_to_ids(query_ctok)[:query_len]
+                    query_cid[i, :len(query_tokens)] = torch.LongTensor(query_tokens)
 
             doc_mask = torch.eq(doc_id, 0)
             query_mask = torch.eq(query_id, 0)
